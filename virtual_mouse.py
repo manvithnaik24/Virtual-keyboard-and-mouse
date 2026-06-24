@@ -7,8 +7,10 @@ Maps the index fingertip position inside a defined active area
 to system cursor movement with smoothing. Pinch gesture triggers clicks.
 """
 
+import sys
 import time
 from collections import deque
+import ctypes
 
 import cv2
 import numpy as np
@@ -134,14 +136,17 @@ class VirtualMouse:
         return int(self._cursor_x), int(self._cursor_y)
 
     def move_cursor(self, finger_x: int, finger_y: int) -> None:
-        """Move the system cursor. Display uses raw finger; cursor uses light smoothing."""
-        self.sync_finger(finger_x, finger_y)
+        """Move the system cursor. The mapping point must be pre-synced using sync_finger()."""
         if self._map_x is None or self._map_y is None:
             return
 
         screen_x, screen_y = self._map_to_screen(self._map_x, self._map_y)
         smooth_x, smooth_y = self._adaptive_cursor_ema(screen_x, screen_y)
-        pyautogui.moveTo(smooth_x, smooth_y, _pause=False)
+        
+        if sys.platform == "win32":
+            ctypes.windll.user32.SetCursorPos(smooth_x, smooth_y)
+        else:
+            pyautogui.moveTo(smooth_x, smooth_y, _pause=False)
 
     def reset_smoothing(self) -> None:
         """Reset smoothing state when hand leaves frame or mode changes."""

@@ -4,6 +4,9 @@ Shared utilities for safe webcam access and landmark handling.
 
 from __future__ import annotations
 
+import threading
+import time
+
 import cv2
 import numpy as np
 import pyautogui
@@ -31,32 +34,89 @@ def configure_pyautogui() -> None:
         _pyautogui_configured = True
 
 
-def open_webcam(camera_index: int = 0) -> cv2.VideoCapture | None:
-    """
-    Open the webcam and verify it can capture frames.
+class ThreadedWebcam:
+    """Webcam wrapper that reads frames in a background thread to prevent blocking lag."""
 
-    Returns a VideoCapture object on success, or None with an error message.
+    def __init__(self, camera_index: int = 0):
+        self.cap = cv2.VideoCapture(camera_index)
+        self.grabbed = False
+        self.frame = None
+        self.started = False
+        self.read_lock = threading.Lock()
+
+        # Test read to verify camera and initialize
+        if self.cap.isOpened():
+            self.grabbed, self.frame = self.cap.read()
+
+    def start(self) -> ThreadedWebcam:
+        if self.started:
+            return self
+        self.started = True
+        self.thread = threading.Thread(target=self._update, daemon=True)
+        self.thread.start()
+        return self
+
+    def _update(self) -> None:
+        while self.started:
+            if not self.cap.isOpened():
+                break
+            grabbed, frame = self.cap.read()
+            with self.read_lock:
+                self.grabbed = grabbed
+                if grabbed:
+                    self.frame = frame
+            # 2ms sleep to yield CPU and cap rate around 500 FPS max
+            time.sleep(0.002)
+
+    def read(self) -> tuple[bool, np.ndarray | None]:
+        with self.read_lock:
+            frame_copy = self.frame.copy() if self.frame is not None else None
+            return self.grabbed, frame_copy
+
+    def isOpened(self) -> bool:
+        return self.cap.isOpened()
+
+    def get(self, propId: int) -> float:
+        return self.cap.get(propId)
+
+    def set(self, propId: int, value: float) -> bool:
+        return self.cap.set(propId, value)
+
+    def release(self) -> None:
+        self.started = False
+        if hasattr(self, "thread"):
+            self.thread.join(timeout=1.0)
+        if self.cap.isOpened():
+            self.cap.release()
+
+
+def open_webcam(camera_index: int = 0) -> ThreadedWebcam | None:
     """
-    cap = cv2.VideoCapture(camera_index)
-    if not cap.isOpened():
+    Open the webcam, verify it can capture frames, and start the background thread.
+
+    Returns a ThreadedWebcam object on success, or None.
+    """
+    webcam = ThreadedWebcam(camera_index)
+    if not webcam.isOpened():
         print(f"Error: Cannot open webcam at index {camera_index}.")
         print("  • Ensure a camera is connected and not in use by another app.")
         print("  • Grant camera permission to your terminal or Python interpreter.")
         print("  • On macOS: System Settings → Privacy & Security → Camera.")
         return None
 
-    success, test_frame = cap.read()
+    # Verification read
+    success, test_frame = webcam.read()
     if not success or test_frame is None or test_frame.size == 0:
-        cap.release()
+        webcam.release()
         print(f"Error: Webcam {camera_index} opened but failed to capture a test frame.")
         print("  • The camera may be disconnected or still initializing.")
         print("  • Try unplugging and reconnecting the camera.")
         return None
 
-    return cap
+    return webcam.start()
 
 
-def read_frame(cap: cv2.VideoCapture) -> np.ndarray | None:
+def read_frame(cap: ThreadedWebcam | cv2.VideoCapture) -> np.ndarray | None:
     """
     Safely read a single frame from the webcam.
 
@@ -68,8 +128,8 @@ def read_frame(cap: cv2.VideoCapture) -> np.ndarray | None:
     return frame
 
 
-def release_camera(cap: cv2.VideoCapture | None) -> None:
-    """Safely release a VideoCapture resource."""
+def release_camera(cap: ThreadedWebcam | cv2.VideoCapture | None) -> None:
+    """Safely release a webcam resource."""
     if cap is not None and cap.isOpened():
         cap.release()
 

@@ -19,7 +19,7 @@ _FINGER_LANDMARK_IDS = frozenset({3, 4, 6, 8, 10, 12, 14, 16, 18, 20})
 class HandTracker:
     """Detects one hand per frame and exposes landmark drawing and position lookup."""
 
-    def __init__(self, detection_confidence: float = 0.7, tracking_confidence: float = 0.7):
+    def __init__(self, detection_confidence: float = 0.7, tracking_confidence: float = 0.55):
         self.mp_draw = mp.solutions.drawing_utils
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands(
