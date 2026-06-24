@@ -20,7 +20,7 @@ Control your computer with hand gestures using a webcam. Built with **Python**, 
 
 ### Virtual Keyboard
 - **QWERTY overlay** — on-screen keyboard drawn with OpenCV
-- **Glide typing** — pinch once and glide across keys without releasing
+- **Pinch to type** — hover over a key and pinch to type it (one character per pinch)
 - **Hover highlight** — index finger highlights the key under the fingertip
 - **Stable hit detection** — EMA smoothing and hover stability for accurate key selection
 
@@ -37,7 +37,7 @@ Control your computer with hand gestures using a webcam. Built with **Python**, 
 | Mode | Gestures |
 |------|----------|
 | **Mouse** | Index finger → move cursor · Pinch → click · Peace sign → scroll |
-| **Keyboard** | Hover key → highlight · Pinch → type · Glide while pinching |
+| **Keyboard** | Hover key → highlight · Pinch → type |
 
 ---
 
@@ -141,7 +141,7 @@ python3 virtual_keyboard.py     # Keyboard demo
 1. Press **K**
 2. Hover index finger over a key (turns orange)
 3. **Pinch** to type the key
-4. Keep pinching and **glide** to adjacent keys for fast typing
+4. Release the pinch and pinch again to type another key
 
 ---
 
@@ -152,7 +152,7 @@ virtual-mouse-keyboard/
 ├── main.py                  # Main application entry point
 ├── hand_tracker.py          # MediaPipe hand detection & finger state
 ├── virtual_mouse.py         # Cursor, click, and scroll control
-├── virtual_keyboard.py      # QWERTY overlay & glide typing
+├── virtual_keyboard.py      # QWERTY overlay & pinch-to-type
 ├── ui_overlay.py              # HUD, animations, and on-screen notices
 ├── groq_analyzer.py           # Optional Groq AI gesture analysis
 ├── utils.py                   # Webcam helpers and landmark utilities

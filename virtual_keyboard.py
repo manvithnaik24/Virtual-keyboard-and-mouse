@@ -216,11 +216,7 @@ class VirtualKeyboard:
         index_tip: tuple[int, int],
     ) -> bool:
         """
-        Type keys with glide support while pinching.
-
-        - Pinch on a key → types immediately
-        - Keep pinching and move to another key → types the new key (no release needed)
-        - Same key won't repeat until pinch is released and pressed again
+        Type keys when a pinch gesture is initiated (one character per pinch).
         """
         distance = self._smooth_pinch_distance(thumb_tip, index_tip)
         pinching = self._is_pinching_now(distance)
@@ -228,27 +224,14 @@ class VirtualKeyboard:
         current_time = time.time()
         new_pinch = pinching and not self.is_pinching
 
-        if not pinching:
-            self._pinch_active_key = None
-        else:
+        if pinching:
             if new_pinch:
-                # On initial pinch, detect key directly under finger immediately
+                # Detect the key under the finger on initial pinch and type it once
                 smooth_x = self._smooth_x if self._smooth_x is not None else index_tip[0]
                 smooth_y = self._smooth_y if self._smooth_y is not None else index_tip[1]
                 key_to_type = self.get_key_at(int(smooth_x), int(smooth_y))
-                hover_ready = True
-            else:
-                key_to_type = self.hovered_key
-                hover_ready = self._hover_stable_count >= self.hover_stable_frames
-
-            if key_to_type and hover_ready and current_time - self.last_press_time >= self.key_switch_delay:
-                moved_to_new_key = (
-                    key_to_type.label != self._pinch_active_key and self._pinch_active_key is not None
-                )
-
-                if new_pinch or moved_to_new_key:
+                if key_to_type and current_time - self.last_press_time >= self.key_switch_delay:
                     typed = self._type_key(key_to_type.label, current_time)
-                    self._pinch_active_key = key_to_type.label
 
         self.is_pinching = pinching
         return typed
@@ -314,13 +297,13 @@ class VirtualKeyboard:
         if not finger_pos:
             self.active_gesture = "No Hand Detected"
         elif self.is_pinching and self.hovered_key:
-            self.active_gesture = f"Glide to type — {self.hovered_key.label}"
+            self.active_gesture = f"Pinching — {self.hovered_key.label}"
         elif self.hovered_key:
             self.active_gesture = f"Hover — {self.hovered_key.label}"
         elif self.is_pinching:
-            self.active_gesture = "Glide to keys"
+            self.active_gesture = "Pinching"
         else:
-            self.active_gesture = "Pinch & glide to type"
+            self.active_gesture = "Pinch to type"
 
     def draw(self, frame: np.ndarray, finger_pos: tuple[int, int] | None = None) -> np.ndarray:
         """Draw the QWERTY keyboard overlay directly on the frame."""
@@ -330,7 +313,7 @@ class VirtualKeyboard:
         if self.is_pinching:
             cv2.putText(
                 frame,
-                "Glide finger across keys while pinching",
+                "Pinch triggered — release to type again",
                 (10, 175),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5,
